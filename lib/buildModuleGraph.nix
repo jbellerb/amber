@@ -76,6 +76,18 @@ let
       }
       module.moduleSiblings;
 
+  serializeVirtualModule =
+    module: specifier:
+    (
+      if module ? redirection then
+        (lib.nameValuePair specifier {
+          file = "${module}";
+          redirect = module.redirection;
+        })
+      else
+        (lib.nameValuePair (module.url or specifier) "${module}")
+    );
+
   genModuleGraphRecursive =
     {
       rootModules,
@@ -89,7 +101,7 @@ let
         virtualRemotes = builtins.listToAttrs (
           builtins.concatMap (
             { module, specifier }:
-            [ (lib.nameValuePair (module.url or specifier) "${module}") ]
+            [ (serializeVirtualModule module specifier) ]
             ++ (lib.optionals (module ? moduleSiblings) (resolveJSRSiblings { inherit module; }).remotes)
             ++ (lib.optionals (module ? packageMeta) [
               # deno_graph prefers to do package resolution itself so I need to

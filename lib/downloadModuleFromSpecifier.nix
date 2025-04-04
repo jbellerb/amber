@@ -6,16 +6,15 @@
 
 { specifier, denoLockParsed }:
 let
-  packages =
+  lock =
     if denoLockParsed.version == "3" then
-      denoLockParsed.packages or { }
+      denoLockParsed
     else
       throw "Deno lock file has an unsupported version: ${denoLockParsed.version}";
-  remote =
-    if denoLockParsed.version == "3" then
-      denoLockParsed.remote or { }
-    else
-      throw "Deno lock file has an unsupported version: ${denoLockParsed.version}";
+
+  packages = lock.packages or { };
+  redirects = lock.redirects or { };
+  remote = lock.remote or { };
 
   scheme = builtins.head (builtins.match "^([A-Za-z][+\-.A-Za-z]*:).*$" specifier);
 in
@@ -23,7 +22,9 @@ if scheme == "file:" then
   throw "Local specifiers can't be resolved: ${specifier}"
 else if scheme == "http:" || scheme == "https:" then
   let
-    split = builtins.match "^https?://jsr.io/([^/]+/[^/]+)/([^/]+)(/.+)$" specifier;
+    redirect = redirects."${specifier}" or null;
+    url = if redirect == null then specifier else redirect;
+    split = builtins.match "^https?://jsr.io/([^/]+/[^/]+)/([^/]+)(/.+)$" url;
     parentSpecifier = "${builtins.elemAt split 0}@${builtins.elemAt split 1}";
     parentPackage = downloadJSRPackage {
       specifier = "jsr:${parentSpecifier}";
@@ -32,8 +33,10 @@ else if scheme == "http:" || scheme == "https:" then
   in
   if split == null then
     downloadRemoteModule {
-      url = specifier;
-      sha256 = remote.${specifier};
+      inherit url;
+      sha256 = remote.${url};
+
+      passthru = if redirect != null then { redirection = redirect; } else { };
     }
   else
     parentPackage.files.${builtins.elemAt split 2}

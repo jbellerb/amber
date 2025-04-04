@@ -30,7 +30,10 @@ const args = flags._.filter((arg: unknown) =>
 if (args.length > 0) {
   let importMap: ImportMap = { imports: {}, scopes: {} };
   let defaultJsxImportSource: string | undefined;
-  let virtualRemotes: Record<string, string> = {};
+  let virtualRemotes: Record<
+    string,
+    string | { redirect: string; file: string }
+  > = {};
   try {
     const configPath = flags.config
       ? toAbsolutePath(flags.config)
@@ -100,10 +103,15 @@ if (args.length > 0) {
         case "https:":
         case "jsr:": {
           const virtual = virtualRemotes[specifier];
-          return virtual == null ? undefined : {
+          if (virtual == null) return undefined;
+
+          const { redirect = null, file } = typeof virtual === "string"
+            ? { file: virtual }
+            : virtual;
+          return {
             kind: "module",
-            specifier,
-            content: await Deno.readTextFile(virtual),
+            specifier: redirect ?? specifier,
+            content: await Deno.readTextFile(file),
           };
         }
         case "node:":
