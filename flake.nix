@@ -53,6 +53,9 @@
       {
         packages."${system}" = {
           graphAnalyzer = (self.mkLib pkgs).graphAnalyzer;
+
+          # See src/BOOTSTRAP.md for bootstrapping instructions
+          # bootstrap = pkgs.callPackage ./src/bootstrap.nix { };
         };
 
         devShells."${system}".default = pkgs.mkShell {
