@@ -4,11 +4,12 @@ Freeze your [Deno](https://deno.com/) (and [Fresh](https://fresh.deno.dev/)!)
 projects with automatic, reproducible dependency vendoring. Powered by
 [Nix](https://nixos.org/).
 
-> [!WARNING] Deno 1.x only. Almost all of this code is extracted from the build
-> system for [manivilization](https://github.com/jbellerb/manivilization/).
-> While a goal of that project was to provide a generic base for my other
-> projects, my use cases may not match yours. NodeJS and NPM support
-> intentionally omitted for ideological reasons.
+> [!WARNING]
+> Deno 1.x only. Almost all of this code is extracted from the build system for
+> [manivilization](https://github.com/jbellerb/manivilization/). While a goal
+> of that project was to provide a generic base for my other projects, my use
+> cases may not match yours. NodeJS and NPM support intentionally omitted for
+> ideological reasons.
 
 ## Features
 

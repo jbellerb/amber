@@ -39,6 +39,7 @@
           programs.nixfmt.enable = true;
           settings.global.excludes = [
             ".envrc"
+            "README.md"
             "LICENSE"
             "src/module_graph.json"
           ];
