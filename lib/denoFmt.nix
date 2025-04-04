@@ -1,10 +1,16 @@
 { lib, mkDenoDerivation }:
 
-{ pname, ignore ? [ ], ... }@args:
-  let
-    ignoreList = lib.concatStringsSep "," ([ "deno.json" ] ++ ignore);
-
-  in mkDenoDerivation (args // {
+{
+  pname,
+  ignore ? [ ],
+  ...
+}@args:
+let
+  ignoreList = lib.concatStringsSep "," ([ "deno.json" ] ++ ignore);
+in
+mkDenoDerivation (
+  args
+  // {
     pname = "${pname}-fmt";
 
     buildPhaseCommand = ''
@@ -14,4 +20,5 @@
     installPhaseCommand = ''
       touch "$out"
     '';
-  })
+  }
+)

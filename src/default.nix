@@ -1,4 +1,8 @@
-{ lib, buildDenoScript, vendorDenoDeps }:
+{
+  lib,
+  buildDenoScript,
+  vendorDenoDeps,
+}:
 
 let
   src = lib.fileset.toSource {
@@ -10,8 +14,8 @@ let
       ./module_graph.json
     ];
   };
-
-in buildDenoScript {
+in
+buildDenoScript {
   pname = "graph-analyzer";
   version = "0.1.0";
 

@@ -1,7 +1,13 @@
 { mkDenoDerivation }:
 
-{ pname, src ? null, ... }@args:
-  mkDenoDerivation (args // {
+{
+  pname,
+  src ? null,
+  ...
+}@args:
+mkDenoDerivation (
+  args
+  // {
     pname = "${args.pname}-lint";
 
     buildPhaseCommand = ''
@@ -11,4 +17,5 @@
     installPhaseCommand = ''
       touch "$out"
     '';
-  })
+  }
+)

@@ -1,12 +1,20 @@
-{ lib, runtimeShell, mkDenoDerivation, deno }:
+{
+  lib,
+  runtimeShell,
+  mkDenoDerivation,
+  deno,
+}:
 
-{ pname
-, src
-, entrypoint ? "main.ts"
-, denoCacheDir ? null
-, ...
+{
+  pname,
+  src,
+  entrypoint ? "main.ts",
+  denoCacheDir ? null,
+  ...
 }@args:
-  mkDenoDerivation (args // {
+mkDenoDerivation (
+  args
+  // {
     pname = "${pname}-wrapper";
 
     outputs = [ "out" ] ++ (lib.optional (!(args ? denoCacheDir)) "cache");
@@ -33,4 +41,5 @@
 
       chmod +x $out/bin/${pname}
     '';
-  })
+  }
+)

@@ -1,16 +1,16 @@
 { lib, newScope }:
 
-lib.makeScope newScope (self:
+lib.makeScope newScope (
+  self:
   let
     inherit (self) callPackage;
-
-  in {
+  in
+  {
     buildDenoScript = callPackage ./buildDenoScript.nix { };
     buildModuleGraph = callPackage ./buildModuleGraph.nix { };
     downloadRemoteModule = callPackage ./downloadRemoteModule.nix { };
     downloadJSRPackage = callPackage ./downloadJSRPackage.nix { };
-    downloadModuleFromSpecifier =
-      callPackage ./downloadModuleFromSpecifier.nix { };
+    downloadModuleFromSpecifier = callPackage ./downloadModuleFromSpecifier.nix { };
     mkDenoDerivation = callPackage ./mkDenoDerivation.nix { };
     vendorDenoDeps = callPackage ./vendorDenoDeps.nix { };
 

@@ -1,10 +1,19 @@
-{ fetchFromGitHub, mkDenoDerivation, esbuild }:
+{
+  fetchFromGitHub,
+  mkDenoDerivation,
+  esbuild,
+}:
 
-{ entrypoints ? [ ], extraImports ? null, ... }@args:
-  let
-    # esbuild binary version must be compatible with what's used by Fresh. as
-    # of writing, Fresh uses esbuild 0.20.2.
-    esbuild19 = esbuild.overrideAttrs (final: prev: rec {
+{
+  entrypoints ? [ ],
+  extraImports ? null,
+  ...
+}@args:
+let
+  # esbuild binary version must be compatible with what's used by Fresh. as
+  # of writing, Fresh uses esbuild 0.20.2.
+  esbuild19 = esbuild.overrideAttrs (
+    final: prev: rec {
       version = "0.20.2";
       src = fetchFromGitHub {
         owner = "evanw";
@@ -12,10 +21,16 @@
         rev = "v${version}";
         hash = "sha256-h/Vqwax4B4nehRP9TaYbdixAZdb1hx373dNxNHvDrtY=";
       };
-    });
-
-  in mkDenoDerivation (args // {
-    outputs = [ "out" "cache" ];
+    }
+  );
+in
+mkDenoDerivation (
+  args
+  // {
+    outputs = [
+      "out"
+      "cache"
+    ];
     denoCacheDir = "$cache";
 
     entrypoints = args.entrypoints ++ [
@@ -46,4 +61,5 @@
       # no static directory in the base directory.
       mkdir -p "$out/static"
     '';
-  })
+  }
+)

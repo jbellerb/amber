@@ -1,13 +1,22 @@
-{ runCommandLocal, mkDenoDerivation, nix }:
+{
+  runCommandLocal,
+  mkDenoDerivation,
+  nix,
+}:
 
 { pname, src, ... }@args:
-  let
-    computeHash = drv: builtins.readFile
-      (runCommandLocal "compute-derivation-hash" { } ''
+let
+  computeHash =
+    drv:
+    builtins.readFile (
+      runCommandLocal "compute-derivation-hash" { } ''
         ${nix}/bin/nix-hash --type sha256 "${drv}" > "$out"
-      '');
-
-  in mkDenoDerivation (args // rec {
+      ''
+    );
+in
+mkDenoDerivation (
+  args
+  // rec {
     pname = "${args.pname}-check";
 
     # When Deno builds its lockfile, only executable JavaScript and TypeScript
@@ -34,4 +43,5 @@
     installPhaseCommand = ''
       printf "${computeHash src}-check" > "$out"
     '';
-  })
+  }
+)
