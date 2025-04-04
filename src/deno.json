@@ -1,0 +1,8 @@
+{
+  "lock": true,
+  "imports": {
+    "deno_graph/": "https://deno.land/x/deno_graph@0.69.6/",
+    "import-maps/": "https://esm.sh/gh/WICG/import-maps@abc4c6b/reference-implementation/lib/",
+    "$std/": "https://deno.land/std@0.220.1/"
+  }
+}
