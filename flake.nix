@@ -31,7 +31,7 @@
       devPath = "path:${./dev}?narHash=${devHash}";
       devInputs = (builtins.getFlake (builtins.unsafeDiscardStringContext devPath)).inputs;
 
-      treefmt = lib.flip devInputs.treefmt-nix.lib.evalModule (
+      mkTreefmt = lib.flip devInputs.treefmt-nix.lib.evalModule (
         { pkgs, ... }:
         {
           projectRootFile = "flake.nix";
@@ -51,9 +51,13 @@
     }
     // (perSystem (
       { pkgs, system }:
+      let
+        denoLib = self.mkLib pkgs;
+        treefmt = mkTreefmt pkgs;
+      in
       {
         packages."${system}" = {
-          graphAnalyzer = (self.mkLib pkgs).graphAnalyzer;
+          graphAnalyzer = denoLib.graphAnalyzer;
 
           # See src/BOOTSTRAP.md for bootstrapping instructions
           # bootstrap = pkgs.callPackage ./src/bootstrap.nix { };
@@ -66,11 +70,19 @@
           ];
         };
 
-        formatter."${system}" = (treefmt pkgs).config.build.wrapper;
+        formatter."${system}" = treefmt.config.build.wrapper;
 
-        checks."${system}" = {
-          formatting = (treefmt pkgs).config.build.check self;
-        };
+        checks."${system}" =
+          let
+            analyzerArgs = {
+              inherit (denoLib.graphAnalyzer) pname version src;
+            };
+          in
+          {
+            formatting = treefmt.config.build.check self;
+            graphAnalyzer-lint = denoLib.denoLint analyzerArgs;
+            graphAnalyzer-check = denoLib.denoCheck analyzerArgs;
+          };
       }
     ));
 }
