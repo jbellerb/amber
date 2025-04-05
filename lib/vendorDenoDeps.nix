@@ -25,7 +25,7 @@ let
       else
         src + "/deno.json"
     );
-  denoLockParsed = lib.importJSON (args.denoLock or (src + "/deno.lock"));
+  denoLockParsed = args.denoLockParsed or (lib.importJSON (args.denoLock or (src + "/deno.lock")));
 
   splitUri =
     uri:
@@ -56,7 +56,21 @@ let
 
   sanitizePath = path: builtins.replaceStrings [ "*" ] [ "_" ] path;
 
-  mkVendorPath = uri: sanitizePath "./${uri.authority}${uri.path}";
+  mkVendorPath =
+    uri:
+    let
+      path =
+        # Ugly hack to handle the convention esm.sh uses where .json files with
+        # "?module" are wrapped into a real JS object. Since Deno does not give
+        # us the MIME type (see the comment in mkVendorFilePath for more info),
+        # but requires files to use the correct extension, I'm forced to rely on
+        # simple heuristics like this...
+        if lib.hasSuffix ".json" uri.path && uri.query == "?module" then
+          "${lib.removeSuffix ".json" uri.path}.js"
+        else
+          uri.path;
+    in
+    sanitizePath "./${uri.authority}${path}";
 
   pathIsDir = lib.hasSuffix "/";
 
@@ -96,9 +110,7 @@ let
         in
         if !(isRemote uri) then
           acc
-        else if module.kind != "esm" then
-          acc
-        else
+        else if module.kind == "asserted" || module.kind == "esm" then
           lib.recursiveUpdate acc {
             mappings = {
               ${module.specifier} = mkVendorFilePath { inherit uri; };
@@ -107,6 +119,8 @@ let
               "${uri.scheme}//${uri.authority}/" = null;
             };
           }
+        else
+          acc
       )
       {
         mappings = { };
@@ -167,9 +181,11 @@ runCommandLocal "build-vendor-dir" { } ''
     builtins.map
       (
         { module, path }:
+        # TODO: investigate a better way to avoid overlapping modules
         ''
           mkdir -p "$out/${builtins.dirOf path}"
           cp "${module}" "$out/${path}"
+          chmod +w "$out/${path}"
         ''
       )
       (
@@ -193,13 +209,18 @@ runCommandLocal "build-vendor-dir" { } ''
       (lib.foldl'
         (
           acc: referrer:
-          if referrer.kind != "esm" then
-            acc
-          else
+          let
+            referrerUri = splitUri referrer.specifier;
+            scope = mkVendorFilePath { uri = (referrerUri // { path = "/"; }); };
+          in
+          if referrer.kind == "asserted" then
+            lib.recursiveUpdate acc {
+              scopes."${scope}"."${referrerUri.path}" = mappings.mappings.${referrer.specifier};
+            }
+          else if referrer.kind == "esm" then
             lib.foldl' (
               acc: dep:
               let
-                referrerUri = splitUri referrer.specifier;
                 depUri = splitUri dep.specifier;
                 resolvedSpecifier = resolveRedirect dep.code.specifier;
                 resolvedUri = splitUri resolvedSpecifier;
@@ -234,14 +255,14 @@ runCommandLocal "build-vendor-dir" { } ''
               else if isRemote referrerUri then
                 # Import is an absolute import from a remote referrer so it should be
                 # included, but scoped under its base specifier
-                lib.recursiveUpdate acc {
-                  scopes.${mkVendorFilePath { uri = (referrerUri // { path = "/"; }); }} = mapping;
-                }
+                lib.recursiveUpdate acc { scopes."${scope}" = mapping; }
               # Import mapping was present in the original import map so it should be
               # included
               else
                 lib.recursiveUpdate acc { imports = mapping; }
             ) acc (referrer.dependencies or [ ])
+          else
+            acc
         )
         {
           imports = { };
