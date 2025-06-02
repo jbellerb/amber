@@ -1,12 +1,16 @@
 { lib, mkDenoDerivation }:
 
+let
+  inherit (lib) concatStringsSep;
+
+in
 {
   pname,
   ignore ? [ ],
   ...
 }@args:
 let
-  ignoreList = lib.concatStringsSep "," ([ "deno.json" ] ++ ignore);
+  ignoreList = concatStringsSep "," ([ "deno.json" ] ++ ignore);
 in
 mkDenoDerivation (
   args

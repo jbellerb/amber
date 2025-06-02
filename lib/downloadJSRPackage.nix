@@ -5,6 +5,20 @@
   downloadRemoteModule,
 }:
 
+let
+  inherit (lib)
+    concatStringsSep
+    foldl'
+    hasPrefix
+    importJSON
+    init
+    mapAttrs
+    removePrefix
+    singleton
+    splitString
+    ;
+
+in
 {
   scope,
   name,
@@ -27,24 +41,24 @@ let
       packageVersion = version;
     };
   };
-  meta = lib.importJSON metaFile;
+  meta = importJSON metaFile;
 
   traversePath =
     from: rel:
     let
-      fromParts = lib.splitString "/" from;
-      relParts = lib.splitString "/" rel;
+      fromParts = splitString "/" from;
+      relParts = splitString "/" rel;
     in
-    lib.concatStringsSep "/" (
-      lib.foldl' (
+    concatStringsSep "/" (
+      foldl' (
         acc: component:
         if component == "" || component == "." then
           acc
         else if component == ".." then
-          lib.init acc
+          init acc
         else
           acc ++ [ component ]
-      ) (lib.init fromParts) relParts
+      ) (init fromParts) relParts
     );
 
   downloadPath =
@@ -52,7 +66,7 @@ let
     downloadRemoteModule {
       url = "https://jsr.io/@${scope}/${name}/${version}${path}";
       hash = builtins.convertHash {
-        hash = lib.removePrefix "sha256-" checksum;
+        hash = removePrefix "sha256-" checksum;
         toHashFormat = "sri";
         hashAlgo = "sha256";
       };
@@ -60,14 +74,14 @@ let
       passthru = {
         moduleSiblings = builtins.foldl' (
           acc: dep:
-          if !(lib.hasPrefix "." dep.specifier) then
+          if !(hasPrefix "." dep.specifier) then
             acc
           else
             let
               depPath = traversePath path dep.specifier;
             in
             acc
-            ++ (lib.singleton (downloadPath {
+            ++ (singleton (downloadPath {
               path = depPath;
               checksum = meta.manifest.${depPath}.checksum;
             }))
@@ -76,7 +90,7 @@ let
     };
 in
 {
-  files = lib.mapAttrs (
+  files = mapAttrs (
     path: info:
     downloadPath {
       inherit path;

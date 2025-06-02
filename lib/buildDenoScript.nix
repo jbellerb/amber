@@ -5,6 +5,15 @@
   deno,
 }:
 
+let
+  inherit (lib)
+    makeBinPath
+    optional
+    optionalString
+    versionAtLeast
+    ;
+
+in
 {
   pname,
   src,
@@ -17,13 +26,13 @@ mkDenoDerivation (
   // {
     pname = "${pname}-wrapper";
 
-    outputs = [ "out" ] ++ (lib.optional (!(args ? denoCacheDir)) "cache");
+    outputs = [ "out" ] ++ (optional (!(args ? denoCacheDir)) "cache");
     denoCacheDir = args.denoCacheDir or "$cache";
 
     # Empty eval is needed because sometimes deno cache doesn't initialize the
     # cache databases for node modules, which need to exist for the script to
     # start even if node modules aren't used.
-    buildPhaseCommand = lib.optionalString (!(args ? denoCacheDir)) ''
+    buildPhaseCommand = optionalString (!(args ? denoCacheDir)) ''
       deno install --config "$denoConfigVendored" --entrypoint "${entrypoint}"
       deno eval --config "$denoConfigVendored" ""
     '';
@@ -33,7 +42,7 @@ mkDenoDerivation (
       cat > $out/bin/${pname} << EOF
       #!${runtimeShell}
 
-      export PATH="${lib.makeBinPath [ deno ]}:\$PATH"
+      export PATH="${makeBinPath [ deno ]}:\$PATH"
       export DENO_DIR="$DENO_DIR"
 
       deno run -A --cached-only --config "$denoConfigVendored" ${src}/${entrypoint} "\$@"

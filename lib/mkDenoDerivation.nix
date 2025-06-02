@@ -6,6 +6,10 @@
   deno,
 }:
 
+let
+  inherit (lib) importJSON optionalAttrs;
+
+in
 {
   pname,
   version,
@@ -28,17 +32,16 @@
   ...
 }@args:
 let
-  denoConfigParsed =
-    args.denoConfigParsed or (lib.importJSON (args.denoConfig or (src + "/deno.json")));
-  denoLockParsed = args.denoLockParsed or (lib.importJSON (args.denoLock or (src + "/deno.lock")));
+  denoConfigParsed = args.denoConfigParsed or (importJSON (args.denoConfig or (src + "/deno.json")));
+  denoLockParsed = args.denoLockParsed or (importJSON (args.denoLock or (src + "/deno.lock")));
   denoVendorDir =
     args.denoVendorDir or (vendorDenoDeps (
       {
         inherit src denoConfigParsed denoLockParsed;
       }
-      // (lib.optionalAttrs (entrypoints != null) { inherit entrypoints; })
-      // (lib.optionalAttrs (extraImports != null) { inherit extraImports; })
-      // (lib.optionalAttrs (denoConfig != null) { inherit denoConfig; })
+      // (optionalAttrs (entrypoints != null) { inherit entrypoints; })
+      // (optionalAttrs (extraImports != null) { inherit extraImports; })
+      // (optionalAttrs (denoConfig != null) { inherit denoConfig; })
     ));
 
   denoConfigVendored =

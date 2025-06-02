@@ -4,6 +4,10 @@
   deno,
 }:
 
+let
+  inherit (lib.strings) sanitizeDerivationName;
+
+in
 { url, hash, ... }@args:
 let
   userAgent = "Deno/${deno.version}";
@@ -11,8 +15,8 @@ in
 fetchurl (
   args
   // {
-    name = lib.strings.sanitizeDerivationName url;
     inherit url hash;
+    name = sanitizeDerivationName url;
 
     curlOptsList = [
       "--user-agent"

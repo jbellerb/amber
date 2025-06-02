@@ -7,6 +7,27 @@
   downloadModuleFromSpecifier,
 }:
 
+let
+  inherit (lib)
+    concatStrings
+    concatStringsSep
+    foldl'
+    hasPrefix
+    hasSuffix
+    importJSON
+    init
+    mapAttrs
+    mapAttrsToList
+    nameValuePair
+    optionalString
+    recursiveUpdate
+    removePrefix
+    removeSuffix
+    splitString
+    zipListsWith
+    ;
+
+in
 {
   src,
   entrypoints ? [ "main.ts" ],
@@ -25,7 +46,7 @@ let
       else
         src + "/deno.json"
     );
-  denoLockParsed = args.denoLockParsed or (lib.importJSON (args.denoLock or (src + "/deno.lock")));
+  denoLockParsed = args.denoLockParsed or (importJSON (args.denoLock or (src + "/deno.lock")));
 
   splitUri =
     uri:
@@ -36,7 +57,7 @@ let
       null
     else
       builtins.listToAttrs (
-        lib.zipListsWith lib.nameValuePair [
+        zipListsWith nameValuePair [
           "scheme"
           "authority"
           "path"
@@ -65,18 +86,18 @@ let
         # us the MIME type (see the comment in mkVendorFilePath for more info),
         # but requires files to use the correct extension, I'm forced to rely on
         # simple heuristics like this...
-        if lib.hasSuffix ".json" uri.path && uri.query == "?module" then
-          "${lib.removeSuffix ".json" uri.path}.js"
+        if hasSuffix ".json" uri.path && uri.query == "?module" then
+          "${removeSuffix ".json" uri.path}.js"
         else
           uri.path;
     in
     sanitizePath "./${uri.authority}${path}";
 
-  pathIsDir = lib.hasSuffix "/";
+  pathIsDir = hasSuffix "/";
 
   pathHasExtension =
     path:
-    builtins.any (ext: lib.hasSuffix ext path) [
+    builtins.any (ext: hasSuffix ext path) [
       ".js"
       ".ts"
       ".mjs"
@@ -98,11 +119,10 @@ let
     # (file types are present in jsr metadata) it is impossible to resolve
     # this if the import path doesn't end in one. I think this is an issue
     # with Deno. Until it's fixed, the best I can do is assume it's plain .js
-    path
-    + (lib.optionalString (!(pathIsDir uri.path) && !(pathHasExtension uri.path)) (args.ext or ".js"));
+    path + (optionalString (!(pathIsDir uri.path) && !(pathHasExtension uri.path)) (args.ext or ".js"));
 
   mappings =
-    lib.foldl'
+    foldl'
       (
         acc: module:
         let
@@ -111,7 +131,7 @@ let
         if !(isRemote uri) then
           acc
         else if module.kind == "asserted" || module.kind == "esm" then
-          lib.recursiveUpdate acc {
+          recursiveUpdate acc {
             mappings = {
               ${module.specifier} = mkVendorFilePath { inherit uri; };
             };
@@ -161,23 +181,23 @@ let
   traversePath =
     from: rel:
     let
-      fromParts = lib.splitString "/" from;
-      relParts = lib.splitString "/" rel;
+      fromParts = splitString "/" from;
+      relParts = splitString "/" rel;
     in
-    lib.concatStringsSep "/" (
-      lib.foldl' (
+    concatStringsSep "/" (
+      foldl' (
         acc: component:
         if component == "" || component == "." then
           acc
         else if component == ".." then
-          lib.init acc
+          init acc
         else
           acc ++ [ component ]
-      ) (lib.init fromParts) relParts
+      ) (init fromParts) relParts
     );
 in
 runCommandLocal "build-vendor-dir" { } ''
-  ${lib.concatStrings (
+  ${concatStrings (
     builtins.map
       (
         { module, path }:
@@ -189,11 +209,11 @@ runCommandLocal "build-vendor-dir" { } ''
         ''
       )
       (
-        (lib.mapAttrsToList (specifier: path: {
+        (mapAttrsToList (specifier: path: {
           module = downloadModuleFromSpecifier { inherit specifier denoLockParsed; };
           inherit path;
         }) mappings.mappings)
-        ++ (lib.mapAttrsToList (name: module: {
+        ++ (mapAttrsToList (name: module: {
           module = downloadRemoteModule {
             url = module.url or name;
             hash = module.hash or module;
@@ -205,8 +225,8 @@ runCommandLocal "build-vendor-dir" { } ''
 
   cat > $out/import_map.json << 'EOF'
   ${builtins.toJSON (
-    lib.recursiveUpdate
-      (lib.foldl'
+    recursiveUpdate
+      (foldl'
         (
           acc: referrer:
           let
@@ -214,11 +234,11 @@ runCommandLocal "build-vendor-dir" { } ''
             scope = mkVendorFilePath { uri = (referrerUri // { path = "/"; }); };
           in
           if referrer.kind == "asserted" then
-            lib.recursiveUpdate acc {
+            recursiveUpdate acc {
               scopes."${scope}"."${referrerUri.path}" = mappings.mappings.${referrer.specifier};
             }
           else if referrer.kind == "esm" then
-            lib.foldl' (
+            foldl' (
               acc: dep:
               let
                 depUri = splitUri dep.specifier;
@@ -249,15 +269,15 @@ runCommandLocal "build-vendor-dir" { } ''
               else if isRemote depUri then
                 if
                   resolvedUri.path
-                  != (lib.removePrefix "./${resolvedUri.authority}" mappings.mappings.${dep.code.specifier})
+                  != (removePrefix "./${resolvedUri.authority}" mappings.mappings.${dep.code.specifier})
                 then
                   # Import was saved in a different location either because it
                   # contained forbidden characters or was missing a file extension,
                   # so it should be included
-                  lib.recursiveUpdate acc { imports = mapping; }
+                  recursiveUpdate acc { imports = mapping; }
                 else if depUri.authority != resolvedUri.authority then
                   # Import is a redirect so it should be included
-                  lib.recursiveUpdate acc { imports = mapping; }
+                  recursiveUpdate acc { imports = mapping; }
                 # Import should be covered by the base specifier blanked imports
                 else
                   acc
@@ -265,7 +285,7 @@ runCommandLocal "build-vendor-dir" { } ''
               else if dep.specifier == resolvedSpecifier then
                 acc
               else if
-                ((lib.hasPrefix "./" dep.specifier) || (lib.hasPrefix "../" dep.specifier))
+                ((hasPrefix "./" dep.specifier) || (hasPrefix "../" dep.specifier))
                 && ((traversePath referrer.specifier dep.specifier) == dep.code.specifier)
               then
                 # Import is a simple relative import and doesn't need special handling
@@ -273,11 +293,11 @@ runCommandLocal "build-vendor-dir" { } ''
               else if isRemote referrerUri then
                 # Import is an absolute import from a remote referrer so it should be
                 # included, but scoped under its base specifier
-                lib.recursiveUpdate acc { scopes."${scope}" = mapping; }
+                recursiveUpdate acc { scopes."${scope}" = mapping; }
               # Import mapping was present in the original import map so it should be
               # included
               else
-                lib.recursiveUpdate acc { imports = mapping; }
+                recursiveUpdate acc { imports = mapping; }
             ) acc (referrer.dependencies or [ ])
           else
             acc
@@ -291,8 +311,8 @@ runCommandLocal "build-vendor-dir" { } ''
       {
         # Add a mapping for each base specifier and extra import
         imports =
-          (lib.mapAttrs (base: _: mkVendorPath (splitUri base)) mappings.baseSpecifiers)
-          // (lib.mapAttrs (name: module: mkVendorPath (splitUri (module.url or name))) extraImports);
+          (mapAttrs (base: _: mkVendorPath (splitUri base)) mappings.baseSpecifiers)
+          // (mapAttrs (name: module: mkVendorPath (splitUri (module.url or name))) extraImports);
       }
   )}
   EOF

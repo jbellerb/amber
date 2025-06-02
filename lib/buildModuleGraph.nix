@@ -7,6 +7,20 @@
   graphAnalyzer,
 }:
 
+let
+  inherit (lib)
+    attrValues
+    concatStringsSep
+    escapeShellArg
+    hasPrefix
+    importJSON
+    nameValuePair
+    optionals
+    optionalString
+    removeSuffix
+    ;
+
+in
 {
   rootModules,
   denoConfig ? null,
@@ -20,7 +34,7 @@ let
       builtins.toJSON (args.denoConfigParsed or (throw "Missing attribute: denoConfig"))
     ));
   denoLockParsed =
-    args.denoLockParsed or (lib.importJSON (args.denoLock or (throw "Missing attribute: denoLock")));
+    args.denoLockParsed or (importJSON (args.denoLock or (throw "Missing attribute: denoLock")));
 
   genModuleGraph =
     {
@@ -32,14 +46,14 @@ let
         builtins.readFile (
           runCommandLocal "build-module-graph" { } ''
             ${
-              lib.optionalString (virtualRemotes != null) ''
+              optionalString (virtualRemotes != null) ''
                 cat > "$TMPDIR/virtual_remotes.json" << 'EOF'
                 ${builtins.toJSON virtualRemotes}
                 EOF
               ''
             }${graphAnalyzer}/bin/graph-analyzer --config "${denoConfig}" ${
-              lib.optionalString (virtualRemotes != null) "--virtual-remotes \"$TMPDIR/virtual_remotes.json\" "
-            }${lib.concatStringsSep " " (builtins.map lib.escapeShellArg specifiers)} > $out
+              optionalString (virtualRemotes != null) "--virtual-remotes \"$TMPDIR/virtual_remotes.json\" "
+            }${concatStringsSep " " (builtins.map escapeShellArg specifiers)} > $out
           ''
         )
       )
@@ -65,7 +79,7 @@ let
           acc
           // {
             known = acc.known // resolved.known;
-            remotes = acc.remotes ++ [ (lib.nameValuePair (sibling.url) "${sibling}") ] ++ resolved.remotes;
+            remotes = acc.remotes ++ [ (nameValuePair (sibling.url) "${sibling}") ] ++ resolved.remotes;
           }
       )
       {
@@ -80,12 +94,12 @@ let
     module: specifier:
     (
       if module ? redirection then
-        (lib.nameValuePair specifier {
+        (nameValuePair specifier {
           file = "${module}";
           redirect = module.redirection;
         })
       else
-        (lib.nameValuePair (module.url or specifier) "${module}")
+        (nameValuePair (module.url or specifier) "${module}")
     );
 
   genModuleGraphRecursive =
@@ -102,16 +116,16 @@ let
           builtins.concatMap (
             { module, specifier }:
             [ (serializeVirtualModule module specifier) ]
-            ++ (lib.optionals (module ? moduleSiblings) (resolveJSRSiblings { inherit module; }).remotes)
-            ++ (lib.optionals (module ? packageMeta) [
+            ++ (optionals (module ? moduleSiblings) (resolveJSRSiblings { inherit module; }).remotes)
+            ++ (optionals (module ? packageMeta) [
               # deno_graph prefers to do package resolution itself so I need to
               # provide it with the jsr.io metadata files. Version metadata is
               # fine, but the package metadata doesn't have an integrity check
               # in the lockfile so I don't have access to it. Fortunately, I
               # can just write a fake one.
-              (lib.nameValuePair module.packageMeta.url module.packageMeta)
-              (lib.nameValuePair
-                "${lib.removeSuffix "/${module.packageMeta.packageVersion}_meta.json" module.packageMeta.url}/meta.json"
+              (nameValuePair module.packageMeta.url module.packageMeta)
+              (nameValuePair
+                "${removeSuffix "/${module.packageMeta.packageVersion}_meta.json" module.packageMeta.url}/meta.json"
                 (
                   writeText (module.packageMeta.packageScope + "-" + module.packageMeta.packageName + "-meta.json") (
                     builtins.toJSON {
@@ -137,7 +151,7 @@ let
         modules =
           modules
           // (builtins.listToAttrs (
-            builtins.map (module: lib.nameValuePair module.specifier module) partition.right
+            builtins.map (module: nameValuePair module.specifier module) partition.right
           ));
         packages = packages // (graph.packages or { });
         redirects = redirects // graph.redirects;
@@ -165,7 +179,7 @@ let
   graph = genModuleGraphRecursive {
     rootModules = builtins.map (
       module:
-      if lib.hasPrefix "http:" module || lib.hasPrefix "https:" module then
+      if hasPrefix "http:" module || hasPrefix "https:" module then
         {
           module = downloadRemoteModule {
             url = module;
@@ -190,5 +204,5 @@ let
 in
 {
   inherit (graph) roots packages redirects;
-  modules = lib.attrValues graph.modules;
+  modules = attrValues graph.modules;
 }
