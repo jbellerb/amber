@@ -24,7 +24,7 @@ mkDenoDerivation (
     # cache databases for node modules, which need to exist for the script to
     # start even if node modules aren't used.
     buildPhaseCommand = lib.optionalString (!(args ? denoCacheDir)) ''
-      deno cache --config "$denoConfigVendored" "${entrypoint}"
+      deno install --config "$denoConfigVendored" --entrypoint "${entrypoint}"
       deno eval --config "$denoConfigVendored" ""
     '';
 
@@ -36,7 +36,7 @@ mkDenoDerivation (
       export PATH="${lib.makeBinPath [ deno ]}:\$PATH"
       export DENO_DIR="$DENO_DIR"
 
-      deno run -A --no-remote --config "$denoConfigVendored" ${src}/${entrypoint} "\$@"
+      deno run -A --cached-only --config "$denoConfigVendored" ${src}/${entrypoint} "\$@"
       EOF
 
       chmod +x $out/bin/${pname}

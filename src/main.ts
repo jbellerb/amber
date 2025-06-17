@@ -1,12 +1,14 @@
-import { parseArgs } from "$std/cli/parse_args.ts";
-import { dirname } from "$std/path/posix/dirname.ts";
-import { isAbsolute } from "$std/path/posix/is_absolute.ts";
-import { join } from "$std/path/posix/join.ts";
-import { toFileUrl } from "$std/path/posix/to_file_url.ts";
+import { parseArgs } from "@std/cli/parse-args";
+import { dirname } from "@std/path/posix/dirname";
+import { isAbsolute } from "@std/path/posix/is-absolute";
+import { join } from "@std/path/posix/join";
+import { toFileUrl } from "@std/path/posix/to-file-url";
 
-import { createGraph, init } from "deno_graph/mod.ts";
-import { parseFromString as parseImportMap } from "import-maps/parser.js";
-import { resolve as resolveImport } from "import-maps/resolver.js";
+import { createGraph, init as initGraph } from "@deno/graph";
+import {
+  instantiate as initImport,
+  parseFromJson as parseImportMap,
+} from "import_map/import_map.generated.js";
 
 type ImportMap = {
   imports: Record<string, string>;
@@ -28,44 +30,53 @@ const args = flags._.filter((arg: unknown) =>
   typeof arg === "string"
 ) as string[];
 if (args.length > 0) {
-  let importMap: ImportMap = { imports: {}, scopes: {} };
+  // While Deno now supports WebAssembly imports, neither deno_graph nor
+  // import_map have been updated to use a version of wasmbuild new enough
+  // (>= 0.18.0) to generate them. Instead, both need to be instantiated
+  // manually.
+  const graphWasmUrl = import.meta.resolve(
+    "@deno/graph/deno_graph_wasm_bg.wasm",
+  );
+  await initGraph({ url: new URL(graphWasmUrl) });
+  const importWasmUrl = import.meta.resolve("import_map/import_map_bg.wasm");
+  await initImport({ url: new URL(importWasmUrl) });
+
+  const configPath = flags.config
+    ? toAbsolutePath(flags.config)
+    : join(Deno.cwd(), "deno.json");
+  const rootDir = dirname(configPath);
+
+  let rawImportMap = flags["import-map"]
+    ? await Deno.readTextFile(toAbsolutePath(flags["import-map"]))
+    : "{}";
+  let doImportExpansion = false;
   let defaultJsxImportSource: string | undefined;
   let virtualRemotes: Record<
     string,
     string | { redirect: string; file: string }
   > = {};
   try {
-    const configPath = flags.config
-      ? toAbsolutePath(flags.config)
-      : join(Deno.cwd(), "deno.json");
-    const rootDir = dirname(configPath);
-
-    let rawImportMap: string;
     const config = JSON.parse(await Deno.readTextFile(configPath));
-    if (flags["import-map"]) {
-      rawImportMap = await Deno.readTextFile(
-        toAbsolutePath(flags["import-map"]),
-      );
-    } else if (config.importMap && !config.imports && !config.scopes) {
-      const importMapPath = toAbsolutePath(config.importMap, rootDir);
-      rawImportMap = await Deno.readTextFile(importMapPath);
-    } else {
-      if (config.importMap) {
-        console.warn(
-          "warning: importMap is ignored when imports or scopes is specified in the config file",
-        );
+
+    if (rawImportMap == "{}") {
+      if (config.importMap && !config.imports && !config.scopes) {
+        const importMapPath = toAbsolutePath(config.importMap, rootDir);
+        rawImportMap = await Deno.readTextFile(importMapPath);
+      } else {
+        if (config.importMap) {
+          console.warn(
+            "warning: importMap is ignored when imports or scopes is specified in the config file",
+          );
+        }
+        rawImportMap = JSON.stringify({
+          imports: config.imports,
+          scopes: config.scopes,
+        });
+        // Match Deno's behavior of "expanding" shorthand imports, but only for
+        // imports provided by deno.json.
+        doImportExpansion = true;
       }
-
-      // the stringify and then parse step is pretty clunky but the import maps
-      // reference implementation doesn't export its normalize methods, so
-      // unless I want to reimplement them I kind of have to do this
-      rawImportMap = JSON.stringify({
-        imports: config.imports,
-        scopes: config.scopes,
-      });
     }
-
-    importMap = parseImportMap(rawImportMap, toFileUrl(rootDir));
     if (["react-jsx", "react-jsxdev"].includes(config.compilerOptions?.jsx)) {
       defaultJsxImportSource = config.compilerOptions?.jsxImportSource;
     }
@@ -79,9 +90,11 @@ if (args.length > 0) {
     console.warn(e);
   }
 
-  // https://github.com/denoland/deno/issues/2552
-  const wasmUrl = import.meta.resolve("deno_graph/deno_graph_wasm_bg.wasm");
-  await init({ url: new URL(wasmUrl) });
+  const importMap = parseImportMap(
+    toFileUrl(rootDir).toString(),
+    rawImportMap,
+    doImportExpansion,
+  );
 
   const specifiers = args.map((specifier) => {
     try {
@@ -124,8 +137,7 @@ if (args.length > 0) {
     defaultJsxImportSource,
     resolve(specifier: string, referrer: string) {
       try {
-        const scriptUrl = new URL(referrer);
-        return resolveImport(specifier, importMap, scriptUrl).toString();
+        return importMap.resolve(specifier, referrer);
       } catch (e) {
         console.warn(e);
         return specifier;

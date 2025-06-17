@@ -4,15 +4,15 @@
   deno,
 }:
 
-{ url, sha256, ... }@args:
+{ url, hash, ... }@args:
 let
   userAgent = "Deno/${deno.version}";
 in
 fetchurl (
   args
   // {
-    inherit url sha256;
     name = lib.strings.sanitizeDerivationName url;
+    inherit url hash;
 
     curlOptsList = [
       "--user-agent"

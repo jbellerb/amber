@@ -5,17 +5,21 @@
   downloadRemoteModule,
 }:
 
-{ specifier, integrity }:
+{
+  scope,
+  name,
+  version,
+  integrity,
+}:
 let
-  parts = builtins.match "^jsr:/?(@[^@/]+)/([^@/]+)@([^@/]+)(/.+)?$" specifier;
-  scope = builtins.elemAt parts 0;
-  name = builtins.elemAt parts 1;
-  version = builtins.elemAt parts 2;
-
   metaFile = fetchurl {
-    name = lib.strings.sanitizeDerivationName specifier;
-    url = "https://jsr.io/${scope}/${name}/${version}_meta.json";
-    sha256 = integrity;
+    name = "jsr-${scope}-${name}-${version}-meta.json";
+    url = "https://jsr.io/@${scope}/${name}/${version}_meta.json";
+    hash = builtins.convertHash {
+      hash = integrity;
+      toHashFormat = "sri";
+      hashAlgo = "sha256";
+    };
 
     passthru = {
       packageScope = scope;
@@ -46,8 +50,12 @@ let
   downloadPath =
     { path, checksum }:
     downloadRemoteModule {
-      url = "https://jsr.io/${scope}/${name}/${version}${path}";
-      sha256 = lib.removePrefix "sha256-" checksum;
+      url = "https://jsr.io/@${scope}/${name}/${version}${path}";
+      hash = builtins.convertHash {
+        hash = lib.removePrefix "sha256-" checksum;
+        toHashFormat = "sri";
+        hashAlgo = "sha256";
+      };
 
       passthru = {
         moduleSiblings = builtins.foldl' (
@@ -63,7 +71,7 @@ let
               path = depPath;
               checksum = meta.manifest.${depPath}.checksum;
             }))
-        ) [ ] (meta.moduleGraph1.${path}.dependencies or [ ]);
+        ) [ ] ((meta.moduleGraph2 or meta.moduleGraph1).${path}.dependencies or [ ]);
       };
     };
 in

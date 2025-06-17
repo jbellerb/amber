@@ -196,7 +196,7 @@ runCommandLocal "build-vendor-dir" { } ''
         ++ (lib.mapAttrsToList (name: module: {
           module = downloadRemoteModule {
             url = module.url or name;
-            sha256 = module.sha256 or module;
+            hash = module.hash or module;
           };
           path = mkVendorPath (splitUri (module.url or name));
         }) extraImports)
@@ -228,7 +228,25 @@ runCommandLocal "build-vendor-dir" { } ''
                   ${dep.specifier} = mappings.mappings.${resolvedSpecifier};
                 };
               in
-              if isRemote depUri then
+              # Import had an error
+              if dep.code or { } ? error then
+                # Import is a dynamic import from a CommonJS file, which failed
+                # to resolve. This is likely an unprefixed npm package or part
+                # of the node standard library
+                if dep.isDynamic or false && dep.code.resolutionMode or "" == "require" then
+                  acc
+                else
+                  let
+                    inherit (dep.code.span) start;
+                    location = "${builtins.toString start.line}:${builtins.toString start.character}";
+                  in
+                  builtins.throw ''
+                    Unable to resolve "${dep.specifier}": ${dep.code.error}
+
+                    ${if dep.isDynamic then "Dynamically i" else "I"}mported at ${referrer.specifier}:${location}
+                  ''
+              # Import is a normal URL
+              else if isRemote depUri then
                 if
                   resolvedUri.path
                   != (lib.removePrefix "./${resolvedUri.authority}" mappings.mappings.${dep.code.specifier})

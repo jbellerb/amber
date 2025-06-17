@@ -169,7 +169,11 @@ let
         {
           module = downloadRemoteModule {
             url = module;
-            sha256 = denoLockParsed.remote.${module};
+            hash = builtins.convertHash {
+              hash = denoLockParsed.remote.${module};
+              toHashFormat = "sri";
+              hashAlgo = "sha256";
+            };
           };
           specifier = module;
         }

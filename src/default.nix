@@ -17,7 +17,7 @@ let
 in
 buildDenoScript {
   pname = "graph-analyzer";
-  version = "0.1.0";
+  version = "0.2.0";
 
   inherit src;
 
@@ -26,9 +26,13 @@ buildDenoScript {
     inherit src;
     denoModuleGraph = lib.importJSON "${src}/module_graph.json";
     extraImports = {
-      "deno_graph/deno_graph_wasm_bg.wasm" = {
-        url = "https://deno.land/x/deno_graph@0.69.6/deno_graph_wasm_bg.wasm";
-        sha256 = "4c031e9511932456344ff236ae75f9978fc3d49a19254a23c785bd47b63fb333";
+      "@deno/graph/deno_graph_wasm_bg.wasm" = {
+        url = "https://jsr.io/@deno/graph/0.95.1/deno_graph_wasm_bg.wasm";
+        hash = "sha256-NlefxeMIyI+3Gw6UunVZ7tb+6JtUq7wlUbXfNBlzksY=";
+      };
+      "import_map/import_map_bg.wasm" = {
+        url = "https://deno.land/x/import_map@v0.22.0/import_map_bg.wasm";
+        hash = "sha256-vEJJoF5OVhmuj9Ys4vkne57/L6a6c/Ed4YKUaNxvFGg=";
       };
     };
   };

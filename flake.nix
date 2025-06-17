@@ -27,7 +27,7 @@
           ) systems
         );
 
-      devHash = "sha256-Pg4La/nClq/5aD6/ykr6OBB1qDa1KHuHAxmjxXGgBfY=";
+      devHash = "sha256-5SMnjlxGjvB/IQrsIjRdMD3mhWi3W0mk6TjALs/mv2w=";
       devPath = "path:${./dev}?narHash=${devHash}";
       devInputs = (builtins.getFlake (builtins.unsafeDiscardStringContext devPath)).inputs;
 
@@ -67,6 +67,7 @@
           nativeBuildInputs = [
             pkgs.deno
             self.packages."${system}".graphAnalyzer
+            treefmt.config.build.wrapper
           ];
         };
 
