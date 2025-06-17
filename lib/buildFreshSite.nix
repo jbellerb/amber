@@ -38,9 +38,9 @@ mkDenoDerivation (
       "dev.ts"
       # These get imported dynamically so they aren't included in the static
       # module graph and would be skipped. deno vendor has this issue too.
-      "https://deno.land/x/fresh@1.6.8/src/runtime/entrypoints/deserializer.ts"
-      "https://deno.land/x/fresh@1.6.8/src/runtime/entrypoints/main.ts"
-      "https://deno.land/x/fresh@1.6.8/src/runtime/entrypoints/signals.ts"
+      "https://deno.land/x/fresh@1.7.3/src/runtime/entrypoints/deserializer.ts"
+      "https://deno.land/x/fresh@1.7.3/src/runtime/entrypoints/main.ts"
+      "https://deno.land/x/fresh@1.7.3/src/runtime/entrypoints/signals.ts"
     ];
 
     preBuild = "export ESBUILD_BINARY_PATH=${esbuild19}/bin/esbuild";
