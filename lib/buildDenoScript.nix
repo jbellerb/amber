@@ -43,9 +43,15 @@ mkDenoDerivation (
       #!${runtimeShell}
 
       export PATH="${makeBinPath [ deno ]}:\$PATH"
-      export DENO_DIR="$DENO_DIR"
+      export DENO_DIR="\$(mktemp -d)"
 
-      deno run -A --cached-only --config "$denoConfigVendored" ${src}/${entrypoint} "\$@"
+      cleanup () {
+          rm -rf "\$DENO_DIR"
+      }
+      trap cleanup EXIT
+      ln -s $DENO_DIR/* "\$DENO_DIR"
+
+      deno run -A --cached-only --config $denoConfigVendored ${src}/${entrypoint} "\$@"
       EOF
 
       chmod +x $out/bin/${pname}
