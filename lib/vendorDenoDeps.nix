@@ -51,7 +51,7 @@ let
   splitUri =
     uri:
     let
-      match = builtins.match "^([A-Za-z][^:]*:)/{2}?([^/]*)?(/[^?]*)?([?].*)?$" uri;
+      match = builtins.match "^([A-Za-z][+-.A-Za-z]*:)//([^/]*)?(/[^?]*)?([?].*)?$" uri;
     in
     if match == null then
       null
@@ -68,12 +68,12 @@ let
   isRemote = uri: uri ? scheme && (uri.scheme == "http:" || uri.scheme == "https:");
 
   moduleGraph =
-    args.denoModuleGraph or (buildModuleGraph ({
+    args.denoModuleGraph or (buildModuleGraph {
       inherit denoConfig denoLockParsed;
-      rootModules = builtins.map (
+      rootModules = map (
         entrypoint: if isRemote (splitUri entrypoint) then entrypoint else "${src}/${entrypoint}"
       ) entrypoints;
-    }));
+    });
 
   sanitizePath = path: builtins.replaceStrings [ "*" ] [ "_" ] path;
 
@@ -198,12 +198,12 @@ let
 in
 runCommandLocal "build-vendor-dir" { } ''
   ${concatStrings (
-    builtins.map
+    map
       (
         { module, path }:
         # TODO: investigate a better way to avoid overlapping modules
         ''
-          mkdir -p "$out/${builtins.dirOf path}"
+          mkdir -p "$out/${dirOf path}"
           cp "${module}" "$out/${path}"
           chmod +w "$out/${path}"
         ''
@@ -258,9 +258,9 @@ runCommandLocal "build-vendor-dir" { } ''
                 else
                   let
                     inherit (dep.code.span) start;
-                    location = "${builtins.toString start.line}:${builtins.toString start.character}";
+                    location = "${toString start.line}:${toString start.character}";
                   in
-                  builtins.throw ''
+                  throw ''
                     Unable to resolve "${dep.specifier}": ${dep.code.error}
 
                     ${if dep.isDynamic then "Dynamically i" else "I"}mported at ${referrer.specifier}:${location}
