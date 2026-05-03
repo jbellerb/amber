@@ -9,7 +9,6 @@ let
     defaultTo
     mapNullable
     removePrefix
-    removeSuffix
     ;
 
   parsePackage =
@@ -36,7 +35,7 @@ let
     let
       isWildcard = xr: xr == "*" || xr == "x" || xr == "X";
       readNumber = mapNullable (n: if isWildcard n then null else builtins.fromJSON n);
-      showNumber = n: defaultTo "0" (mapNullable builtins.toString n);
+      showNumber = n: defaultTo "0" (mapNullable toString n);
       zeroVersion = {
         major = "0";
         minor = "0";
@@ -167,11 +166,7 @@ else if scheme == "http:" || scheme == "https:" then
   if split == null then
     downloadRemoteModule {
       inherit url;
-      hash = builtins.convertHash {
-        hash = remote.${url};
-        toHashFormat = "sri";
-        hashAlgo = "sha256";
-      };
+      sha256 = remote.${url};
 
       passthru = if redirect != null then { redirection = redirect; } else { };
     }
@@ -192,7 +187,7 @@ else if scheme == "jsr:" then
       integrity = packages.jsr."@${scope}/${name}@${resolvedVersion}".integrity;
     };
   in
-  package.files.${removePrefix "." package.exports.${"." + (builtins.toString path)}}
+  package.files.${removePrefix "." package.exports.${"." + (toString path)}}
   // {
     packageMeta = package.meta;
   }

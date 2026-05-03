@@ -1,7 +1,6 @@
 {
   lib,
   fetchurl,
-  downloadJSRPackage,
   downloadRemoteModule,
 }:
 
@@ -29,11 +28,7 @@ let
   metaFile = fetchurl {
     name = "jsr-${scope}-${name}-${version}-meta.json";
     url = "https://jsr.io/@${scope}/${name}/${version}_meta.json";
-    hash = builtins.convertHash {
-      hash = integrity;
-      toHashFormat = "sri";
-      hashAlgo = "sha256";
-    };
+    sha256 = integrity;
 
     passthru = {
       packageScope = scope;
@@ -65,11 +60,7 @@ let
     { path, checksum }:
     downloadRemoteModule {
       url = "https://jsr.io/@${scope}/${name}/${version}${path}";
-      hash = builtins.convertHash {
-        hash = removePrefix "sha256-" checksum;
-        toHashFormat = "sri";
-        hashAlgo = "sha256";
-      };
+      sha256 = removePrefix "sha256-" checksum;
 
       passthru = {
         moduleSiblings = builtins.foldl' (

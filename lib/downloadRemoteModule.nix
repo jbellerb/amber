@@ -8,14 +8,14 @@ let
   inherit (lib.strings) sanitizeDerivationName;
 
 in
-{ url, hash, ... }@args:
+{ url, ... }@args:
 let
   userAgent = "Deno/${deno.version}";
 in
 fetchurl (
   args
   // {
-    inherit url hash;
+    inherit url;
     name = sanitizeDerivationName url;
 
     curlOptsList = [

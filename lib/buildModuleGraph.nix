@@ -53,7 +53,7 @@ let
               ''
             }${graphAnalyzer}/bin/graph-analyzer --config "${denoConfig}" ${
               optionalString (virtualRemotes != null) "--virtual-remotes \"$TMPDIR/virtual_remotes.json\" "
-            }${concatStringsSep " " (builtins.map escapeShellArg specifiers)} > $out
+            }${concatStringsSep " " (map escapeShellArg specifiers)} > $out
           ''
         )
       )
@@ -111,7 +111,7 @@ let
     }:
     let
       graph = genModuleGraph {
-        specifiers = builtins.map (module: module.specifier) rootModules;
+        specifiers = map (module: module.specifier) rootModules;
         virtualRemotes = builtins.listToAttrs (
           builtins.concatMap (
             { module, specifier }:
@@ -150,16 +150,14 @@ let
       updated = {
         modules =
           modules
-          // (builtins.listToAttrs (
-            builtins.map (module: nameValuePair module.specifier module) partition.right
-          ));
+          // (builtins.listToAttrs (map (module: nameValuePair module.specifier module) partition.right));
         packages = packages // (graph.packages or { });
         redirects = redirects // graph.redirects;
       };
       nextLayer = genModuleGraphRecursive (
         updated
         // {
-          rootModules = builtins.map (module: {
+          rootModules = map (module: {
             module = downloadModuleFromSpecifier {
               inherit (module) specifier;
               inherit denoLockParsed;
@@ -177,17 +175,13 @@ let
     );
 
   graph = genModuleGraphRecursive {
-    rootModules = builtins.map (
+    rootModules = map (
       module:
       if hasPrefix "http:" module || hasPrefix "https:" module then
         {
           module = downloadRemoteModule {
             url = module;
-            hash = builtins.convertHash {
-              hash = denoLockParsed.remote.${module};
-              toHashFormat = "sri";
-              hashAlgo = "sha256";
-            };
+            sha256 = denoLockParsed.remote.${module};
           };
           specifier = module;
         }
