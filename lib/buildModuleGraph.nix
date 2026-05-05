@@ -73,7 +73,7 @@ let
           let
             resolved = resolveJSRSiblings {
               module = sibling;
-              inherit known;
+              known = acc.known;
             };
           in
           acc
